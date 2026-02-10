@@ -19,7 +19,19 @@ postmorty/
 ## Deployment Guide (VPS)
 For a detailed step-by-step setup on a fresh VPS, see the [Deployment Guide](deployment_guide.md).
 
-## Quick Setup
+## Quick Setup (Docker - Recommended)
+1. Clone the repository.
+2. Edit `.env` with your API keys.
+3. Run: `docker-compose up -d`
+4. Initialize the DB: `docker-compose exec app python3 -m postmorty.scripts.init_db`
+
+## Usage (Docker)
+```bash
+docker-compose exec app python3 -m postmorty.main status
+docker-compose exec app python3 -m postmorty.main ingest-daily AAPL
+```
+
+## Quick Setup (Manual)
 1. Clone the repository.
 2. `python3 -m venv .venv && source .venv/bin/activate`
 3. `pip install -r requirements.txt`

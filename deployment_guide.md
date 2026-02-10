@@ -1,33 +1,52 @@
-# Postmorty Deployment Guide
+# Docker Deployment Guide - Postmorty
 
-## 1. System Preparation
+Containerization is the easiest way to deploy Postmorty to your VPS.
+
+## 1. System Preparation (VPS)
+Install Docker and Docker Compose:
 ```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3-venv python3-pip postgresql postgresql-contrib
+sudo apt update
+sudo apt install -y docker.io docker-compose
+sudo systemctl enable --now docker
 ```
 
-## 2. Database Setup
-```sql
-sudo -i -u postgres psql
-CREATE DATABASE postmorty;
-CREATE USER alphaseeker WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE postmorty TO alphaseeker;
-\q
-```
+## 2. Configuration
+1. **Clone the Repo** to your VPS.
+2. **Edit `.env`**:
+   ```ini
+   DB_USER=alphaseeker
+   DB_PASSWORD=makemerich
+   DB_NAME=postmorty
+   # When using Docker Compose, the DB host is simply 'db'
+   DB_HOST=db
+   DB_PORT=5432
+   ALPHA_VANTAGE_KEYS=key1,key2
+   ```
 
-## 3. Installation
+## 3. Deployment
+Run the stack in the background:
 ```bash
-git clone <your-repo>
-cd postmorty
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+docker-compose up -d --build
 ```
 
-## 4. Initialization
-1. Edit `.env` with your VPS-specific details and Alpha Vantage key.
-2. Run `python3 -m postmorty.scripts.init_db` to create tables.
+## 4. Initialize Database
+Create the required tables inside the container:
+```bash
+docker-compose exec app python3 -m postmorty.scripts.init_db
+```
 
 ## 5. Automation
+You can still use `cron` to trigger the refresh inside the container.
 Add to `crontab -e`:
-`0 0 * * * /bin/bash /home/your_user/postmorty/refresh_data.sh`
+```cron
+0 0 * * * cd /home/your_user/postmorty && docker-compose exec -T app bash refresh_data.sh
+```
+
+## 6. Verification
+```bash
+docker-compose exec app python3 -m postmorty.main status
+```
+Check logs:
+```bash
+docker-compose logs -f app
+```
