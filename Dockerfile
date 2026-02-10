@@ -25,5 +25,5 @@ COPY . .
 # Ensure scripts are executable
 RUN chmod +x refresh_data.sh
 
-# Default command
-CMD ["python3", "-m", "postmorty.main", "status"]
+# Default command (keep container alive)
+CMD ["tail", "-f", "/dev/null"]
