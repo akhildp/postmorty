@@ -3,8 +3,11 @@
 # Navigate to the project directory
 cd "$(dirname "$0")"
 
-# Activate the virtual environment
-source .venv/bin/activate
+# Activate the virtual environment if it exists (for local setup)
+# In Docker, dependencies are installed globally in the container
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+fi
 
 # Fetch the top 25 companies
 echo "Starting daily refresh at $(date)" >> refresh.log
