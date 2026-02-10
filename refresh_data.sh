@@ -3,13 +3,13 @@
 # Navigate to the project directory
 cd "$(dirname "$0")"
 
-# Activate the virtual environment if it exists (for local setup)
-# In Docker, dependencies are installed globally in the container
-if [ -d ".venv" ]; then
+# Activate the virtual environment if it exists and NOT in Docker
+if [ -d ".venv" ] && [ ! -f /.dockerenv ]; then
     source .venv/bin/activate
 fi
 
 # Fetch the top 25 companies
+echo "Starting daily refresh at $(date)"
 echo "Starting daily refresh at $(date)" >> refresh.log
 python3 -m postmorty.main ingest-sp500 --limit 25 --symbols-file top_25_market_cap.txt >> refresh.log 2>&1
 
