@@ -108,57 +108,56 @@ class MassiveClient:
         # 1. Ticker Details
         try:
             url = f"https://api.massive.com/v3/reference/tickers/{symbol}"
-            response = requests.get(url, params={"apiKey": self.api_key})
+            response = requests.get(url, params={"apiKey": self.api_key}, timeout=10)
             if response.status_code == 200:
                 data = response.json().get("results", {})
                 valuation["market_cap"] = data.get("market_cap")
                 valuation["shares_outstanding"] = data.get("weighted_shares_outstanding")
+            else:
+                print(f"Ticker Details for {symbol} failed: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"Error fetching ticker details for {symbol}: {e}")
 
         # 2. Income Statement (EPS)
         try:
             url = "https://api.massive.com/stocks/financials/v1/income-statements"
-            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key})
+            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key}, timeout=10)
             if response.status_code == 200:
                 results = response.json().get("results", [])
                 if results:
                     income = results[0]
-                    # Check for nested 'financials' -> 'income_statement' structure if applicable, 
-                    # but usually it's flattened or inside 'financials'. 
-                    # Massive's structure usually puts fields directly in result or under financials.
-                    # Based on standard response:
                     valuation["basic_earnings_per_share"] = income.get("financials", {}).get("income_statement", {}).get("basic_earnings_per_share", {}).get("value")
-                    # Fallback if structure is flat
                     if valuation.get("basic_earnings_per_share") is None:
                          valuation["basic_earnings_per_share"] = income.get("basic_earnings_per_share")
+            else:
+                print(f"Income Statement for {symbol} failed: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"Error fetching income statement for {symbol}: {e}")
 
         # 3. Balance Sheet (Equity, Debt)
         try:
             url = "https://api.massive.com/stocks/financials/v1/balance-sheets"
-            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key})
+            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key}, timeout=10)
             if response.status_code == 200:
                 results = response.json().get("results", [])
                 if results:
                     bs = results[0]
                     bs_data = bs.get("financials", {}).get("balance_sheet", {})
                     
-                    # equity
                     valuation["total_equity"] = bs_data.get("equity_attributable_to_parent", {}).get("value") or bs.get("total_equity")
                     
-                    # debt
                     long_term_debt = bs_data.get("long_term_debt", {}).get("value") or 0
                     current_debt = bs_data.get("debt_current", {}).get("value") or 0
                     valuation["total_debt"] = long_term_debt + current_debt
+            else:
+                print(f"Balance Sheet for {symbol} failed: {response.status_code} - {response.text}")
         except Exception as e:
              print(f"Error fetching balance sheet for {symbol}: {e}")
              
-        # 4. Cash Flow (Free Cash Flow) - Optional but good
+        # 4. Cash Flow (Free Cash Flow)
         try:
             url = "https://api.massive.com/stocks/financials/v1/cash-flow-statements"
-            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key})
+            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key}, timeout=10)
             if response.status_code == 200:
                 results = response.json().get("results", [])
                 if results:
@@ -166,13 +165,14 @@ class MassiveClient:
                      cf_data = cf.get("financials", {}).get("cash_flow_statement", {})
                      
                      operating_cash_flow = cf_data.get("net_cash_from_operating_activities", {}).get("value")
-                     capex = cf_data.get("net_cash_used_for_investing_activities", {}).get("value") # Often approximated or found as 'payments_for_property_plant_and_equipment'
-                     
-                     # Simple FCF approximation if fields match
                      if operating_cash_flow:
-                         valuation["free_cash_flow"] = operating_cash_flow # Placeholder, real FCF needs Capex subtraction
-        except Exception:
-            pass
+                         valuation["free_cash_flow"] = operating_cash_flow 
+            else:
+                # Cash Flow isn't strictly required, so maybe just debug log or silent?
+                # Let's print for now to be sure.
+                print(f"Cash Flow for {symbol} failed: {response.status_code} - {response.text}")
+        except Exception as e:
+            print(f"Error fetching cash flow for {symbol}: {e}")
 
         return valuation
 
