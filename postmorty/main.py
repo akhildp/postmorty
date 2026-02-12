@@ -55,52 +55,52 @@ def status():
         print(f"Database: Failed ({e})")
 
 @app.command()
-def ingest_sp500(limit: int = 600, days: int = 100, symbols_file: str = "sp500_symbols.txt"):
-    """Fetches daily stock data for a list of companies with rate limiting."""
-    import time
-    
+def ingest_batch(limit: int = 10000, days: int = 100, symbols_file: str = "all_us_symbols.txt"):
+    """Fetches daily stock data for a list of companies."""
     # Resolve path relative to THIS file
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     symbols_path = os.path.join(base_dir, "data", symbols_file)
     
     if not os.path.exists(symbols_path):
-        print(f"Error: {symbols_path} not found.")
+        print(f"Error: {symbols_path} not found. Run 'update-symbols' first?")
         return
 
     with open(symbols_path, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Starting batch ingestion for {min(len(symbols), limit)} symbols (Daily limit: {limit}, History: {days} days)...")
+    print(f"Starting batch ingestion for {min(len(symbols), limit)} symbols from {symbols_file}...")
     
     success_count = 0
     for i, symbol in enumerate(symbols[:limit]):
-        # Massive API Unlimited: No sleep needed
-        
         try:
-            # We call the existing ingest_daily logic
             ingest_daily(symbol, days=days)
             success_count += 1
         except Exception as e:
             print(f"Failed to ingest {symbol}: {e}")
-            break # Stop on error to avoid wasting units if something is fundamentally wrong
-
+            # Don't break on one failure, but maybe log it
+            
     print(f"Batch ingestion complete. Successfully processed {success_count} symbols.")
 
 @app.command()
-def process_sp500(limit: int = 600, symbols_file: str = "sp500_symbols.txt"):
-    """Processes indicators for all S&P 500 symbols."""
+def ingest_sp500(limit: int = 600, days: int = 100):
+    """Wrapper for ingest-batch using S&P 500 symbols."""
+    ingest_batch(limit=limit, days=days, symbols_file="sp500_symbols.txt")
+
+@app.command()
+def process_batch(limit: int = 10000, symbols_file: str = "all_us_symbols.txt"):
+    """Processes indicators for a list of symbols."""
     # Resolve path relative to THIS file
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     symbols_path = os.path.join(base_dir, "data", symbols_file)
     
     if not os.path.exists(symbols_path):
-        print(f"Error: {symbols_path} not found.")
+        print(f"Error: {symbols_path} not found. Run 'update-symbols' first?")
         return
 
     with open(symbols_path, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Starting batch processing for {min(len(symbols), limit)} symbols...")
+    print(f"Starting batch processing for {min(len(symbols), limit)} symbols from {symbols_file}...")
     
     for i, symbol in enumerate(symbols[:limit]):
         try:
@@ -109,6 +109,30 @@ def process_sp500(limit: int = 600, symbols_file: str = "sp500_symbols.txt"):
             print(f"Failed to process {symbol}: {e}")
 
     print("Batch processing complete.")
+
+@app.command()
+def process_sp500(limit: int = 600):
+    """Wrapper for process-batch using S&P 500 symbols."""
+    process_batch(limit=limit, symbols_file="sp500_symbols.txt")
+
+@app.command()
+def update_symbols():
+    """Fetches all active US stock tickers and saves them to data/all_us_symbols.txt."""
+    try:
+        client = MassiveClient()
+        print("Fetching all active US stock tickers...")
+        tickers = client.fetch_all_tickers()
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        file_path = os.path.join(base_dir, "data", "all_us_symbols.txt")
+        
+        with open(file_path, "w") as f:
+            for ticker in tickers:
+                f.write(f"{ticker}\n")
+                
+        print(f"Successfully saved {len(tickers)} tickers to {file_path}")
+    except Exception as e:
+        print(f"Error updating symbols: {e}")
 
 @app.command()
 def process_ticker(symbol: str):

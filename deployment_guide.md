@@ -92,3 +92,25 @@ The most secure way to access your database is via an **SSH Tunnel**.
 - **EOF Error (Remote)**: Ensure the SSH Tunnel **Remote Host** is `127.0.0.1` and **Remote Port** is `5432`.
 - **Port Conflict**: On the VPS, run `ss -lntp | grep 5432`. If it's empty after `docker compose up`, force a restart: `docker compose down && docker compose up -d`.
 - **Permission Denied**: Ensure `deployuser` is in the `docker` group.
+
+## 8. Expanding to All US Stocks
+To track ~10,000 active US stocks instead of just the S&P 500:
+
+1.  **Update Symbol List**:
+    ```bash
+    docker compose exec app python3 -m postmorty.main update-symbols
+    ```
+    This creates `data/all_us_symbols.txt`.
+
+2.  **Ingest Data** (Limit increased to 10,000):
+    ```bash
+    docker compose exec app python3 -m postmorty.main ingest-batch --symbols-file all_us_symbols.txt --limit 10000
+    ```
+
+3.  **Process Indicators**:
+    ```bash
+    docker compose exec app python3 -m postmorty.main process-batch --symbols-file all_us_symbols.txt --limit 10000
+    ```
+
+4.  **Update Cron**:
+    Modify `refresh_data.sh` or the cron job to use the commands above.

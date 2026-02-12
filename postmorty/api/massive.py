@@ -60,6 +60,42 @@ class MassiveClient:
         results = data.get("results", [])
         return self._parse_results(results)
 
+    def fetch_all_tickers(self) -> List[str]:
+        """Fetches all active stock tickers from Massive API."""
+        url = "https://api.massive.com/v3/reference/tickers"
+        params = {
+            "market": "stocks",
+            "active": "true",
+            "limit": 1000,
+            "order": "asc",
+            "sort": "ticker",
+            "apiKey": self.api_key
+        }
+        
+        all_tickers = []
+        while url:
+            try:
+                print(f"Fetching tickers from {url}...")
+                # If we are using a cursor url, we don't need the original params, but we might need auth
+                current_params = params if "cursor" not in url else {"apiKey": self.api_key}
+                
+                response = requests.get(url, params=current_params)
+                response.raise_for_status()
+                data = response.json()
+                
+                results = data.get("results", [])
+                for item in results:
+                    all_tickers.append(item["ticker"])
+                
+                # Check for next page
+                url = data.get("next_url")
+                
+            except requests.exceptions.RequestException as e:
+                print(f"Error fetching tickers: {e}")
+                break
+                
+        return all_tickers
+
     def _parse_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Parses the raw results from Massive API into the application's format."""
         parsed_records = []
