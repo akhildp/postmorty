@@ -3,17 +3,37 @@
 Containerization is the easiest way to deploy Postmorty to your VPS.
 
 ## 1. System Preparation (VPS)
-Install Docker and Docker Compose:
+### 1.1 Create Deployment User
+It is best practice to run Docker as a non-root user.
+```bash
+# Create user
+sudo adduser deployuser
+
+# Add to docker group (and sudo if needed)
+sudo usermod -aG docker deployuser
+sudo usermod -aG sudo deployuser
+
+# Switch to the new user
+su - deployuser
+```
+
+### 1.2 Install Docker
+Install Docker and Docker Compose (if not already installed):
 ```bash
 sudo apt update
 sudo apt install -y docker.io docker-compose-v2
 sudo systemctl enable --now docker
-sudo usermod -aG docker $USER
 # Log out and log back in for group changes to take effect
+exit
+su - deployuser
 ```
 
 ## 2. Configuration
-1. **Clone the Repo**.
+1. **Clone the Repo** (as `deployuser`):
+   ```bash
+   git clone https://github.com/akhildp/postmorty.git
+   cd postmorty
+   ```
 2. **Edit `.env`**:
    ```ini
    DB_USER=alphaseeker
@@ -40,10 +60,15 @@ Fetch 10 years of data for S&P 500 (this will take time):
 docker compose exec app python3 -m postmorty.main ingest-sp500 --days 3650
 ```
 
+Calcluate indicators for all S&P 500 symbols:
+```bash
+docker compose exec app python3 -m postmorty.main process-sp500
+```
+
 ## 5. Automation (Cron)
-Add to `crontab -e`:
+Add to `crontab -e` (as `deployuser`):
 ```cron
-0 0 * * * cd /home/mortyuser/postmorty && sudo docker compose exec -T app bash refresh_data.sh
+0 0 * * * cd /home/deployuser/postmorty && docker compose exec -T app bash refresh_data.sh
 ```
 
 ## 6. Remote Access (DBeaver / TablePlus)
@@ -58,12 +83,12 @@ The most secure way to access your database is via an **SSH Tunnel**.
 2.  **SSH Tab**:
     - Check **"Use SSH Tunnel"**.
     - **Host**: Your VPS IP.
-    - **User**: `mortyuser`.
+    - **User**: `deployuser`.
     - **Local Port**: `5433`.
     - **Remote Host**: `127.0.0.1`.
     - **Remote Port**: `5432`.
 
 ## 7. Troubleshooting
 - **EOF Error (Remote)**: Ensure the SSH Tunnel **Remote Host** is `127.0.0.1` and **Remote Port** is `5432`.
-- **Port Conflict**: On the VPS, run `ss -lntp | grep 5432`. If it's empty after `docker compose up`, force a restart: `sudo docker compose down && sudo docker compose up -d`.
-- **Permission Denied**: Ensure your user is in the `docker` group.
+- **Port Conflict**: On the VPS, run `ss -lntp | grep 5432`. If it's empty after `docker compose up`, force a restart: `docker compose down && docker compose up -d`.
+- **Permission Denied**: Ensure `deployuser` is in the `docker` group.
