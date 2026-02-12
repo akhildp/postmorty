@@ -102,9 +102,9 @@ To track ~10,000 active US stocks instead of just the S&P 500:
     ```
     This creates `data/all_us_symbols.txt`.
 
-2.  **Ingest Data** (Limit increased to 10,000):
+2.  **Ingest 10 Years of Data** (Limit increased to 10,000):
     ```bash
-    docker compose exec app python3 -m postmorty.main ingest-batch --symbols-file all_us_symbols.txt --limit 10000
+    docker compose exec app python3 -m postmorty.main ingest-batch --symbols-file all_us_symbols.txt --limit 10000 --days 3650
     ```
 
 3.  **Process Indicators**:
