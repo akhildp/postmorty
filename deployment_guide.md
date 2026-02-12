@@ -36,12 +36,12 @@ su - deployuser
    ```
 2. **Edit `.env`**:
    ```ini
-   DB_USER=alphaseeker
-   DB_PASSWORD=makemerich
+   DB_USER=postmorty_user
+   DB_PASSWORD=your_secure_password
    DB_NAME=postmorty
    DB_HOST=db
    DB_PORT=5432
-   MASSIVE_API_KEY=your_key_here
+   MASSIVE_API_KEY=your_massive_api_key
    ```
 
 ## 3. Deployment
@@ -79,7 +79,7 @@ The most secure way to access your database is via an **SSH Tunnel**.
     - **Host**: `127.0.0.1`
     - **Port**: `5433` (Use 5433 to avoid local conflicts)
     - **Database**: `postmorty`
-    - **Username/Password**: `alphaseeker` / `makemerich`
+    - **Username/Password**: `postmorty_user` / `your_secure_password`
 2.  **SSH Tab**:
     - Check **"Use SSH Tunnel"**.
     - **Host**: Your VPS IP.
