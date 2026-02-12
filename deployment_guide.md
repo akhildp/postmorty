@@ -117,6 +117,12 @@ To track ~10,000 active US stocks instead of just the S&P 500:
     docker compose exec app python3 -m postmorty.main ingest-valuations --symbols-file all_us_symbols.txt --limit 10000
     ```
 
+5.  **Run Quant Scanner**:
+    ```bash
+    # Scan for Exponential Breakouts (Cap $500M - $5B)
+    docker compose exec app python3 -m postmorty.main scan --strategy exponential_breakout --min-cap 500M --max-cap 5B
+    ```
+
 
 4.  **Update Cron**:
     The `refresh_data.sh` script has been updated to automatically:

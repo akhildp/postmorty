@@ -227,6 +227,48 @@ def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.tx
     print(f"Valuation ingestion complete. Successfully processed {success_count} symbols.")
 
 @app.command()
+def scan(
+    strategy: str = "exponential_breakout",
+    min_cap: str = "500M", 
+    max_cap: str = "5B"
+):
+    """
+    Scans the market using the specified strategy.
+    """
+    from postmorty.core.scanner import Scanner
+    from postmorty.strategies.exponential_breakout import ExponentialBreakout
+
+    # Parse Market Cap strings to float
+    def parse_cap(cap_str):
+        cap_str = cap_str.upper()
+        if "B" in cap_str:
+            return float(cap_str.replace("B", "")) * 1_000_000_000
+        elif "M" in cap_str:
+            return float(cap_str.replace("M", "")) * 1_000_000
+        return float(cap_str)
+
+    min_val = parse_cap(min_cap)
+    max_val = parse_cap(max_cap)
+    
+    print(f"Starting Scan: Strategy={strategy}, Cap={min_cap}-{max_cap}...")
+    
+    if strategy == "exponential_breakout":
+        scanner = Scanner(ExponentialBreakout)
+        results = scanner.scan(min_market_cap=min_val, max_market_cap=max_val)
+        
+        print(f"\nScan Complete. Found {len(results)} matches.")
+        print("-" * 60)
+        print(f"{'Symbol':<10} | {'Score':<5} | {'Signals'}")
+        print("-" * 60)
+        
+        for res in results[:50]: # Show top 50
+             signals_str = ", ".join(res.signals)
+             print(f"{res.symbol:<10} | {res.score:<5.0f} | {signals_str}")
+    else:
+        print(f"Unknown strategy: {strategy}")
+
+
+@app.command()
 def process_ticker(symbol: str):
     """Processes raw OHLCV data into the technical analysis table (candles_d1)."""
     process_ticker_data(symbol)
