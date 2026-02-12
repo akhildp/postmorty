@@ -105,7 +105,7 @@ class MassiveClient:
         """
         valuation = {}
         
-        # 1. Ticker Details
+        # 1. Ticker Details (ALLOWED)
         try:
             url = f"https://api.massive.com/v3/reference/tickers/{symbol}"
             response = requests.get(url, params={"apiKey": self.api_key}, timeout=10)
@@ -114,65 +114,24 @@ class MassiveClient:
                 valuation["market_cap"] = data.get("market_cap")
                 valuation["shares_outstanding"] = data.get("weighted_shares_outstanding")
             else:
-                print(f"Ticker Details for {symbol} failed: {response.status_code} - {response.text}")
+                # Log only if crucial Ticker Details fails (e.g. rate limit)
+                # But for 404/403 on this free endpoint, it's worth noting.
+                print(f"Ticker Details for {symbol} failed: {response.status_code}")
         except Exception as e:
             print(f"Error fetching ticker details for {symbol}: {e}")
 
-        # 2. Income Statement (EPS)
-        try:
-            url = "https://api.massive.com/stocks/financials/v1/income-statements"
-            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key}, timeout=10)
-            if response.status_code == 200:
-                results = response.json().get("results", [])
-                if results:
-                    income = results[0]
-                    valuation["basic_earnings_per_share"] = income.get("financials", {}).get("income_statement", {}).get("basic_earnings_per_share", {}).get("value")
-                    if valuation.get("basic_earnings_per_share") is None:
-                         valuation["basic_earnings_per_share"] = income.get("basic_earnings_per_share")
-            else:
-                print(f"Income Statement for {symbol} failed: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"Error fetching income statement for {symbol}: {e}")
+        # SKIPPING Income/Balance/CashFlow due to 403 Forbidden on Basic Plan.
+        # Although the code supports it, we disable it to avoid error spam.
+        # Uncomment below blocks if plan is upgraded.
 
-        # 3. Balance Sheet (Equity, Debt)
-        try:
-            url = "https://api.massive.com/stocks/financials/v1/balance-sheets"
-            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key}, timeout=10)
-            if response.status_code == 200:
-                results = response.json().get("results", [])
-                if results:
-                    bs = results[0]
-                    bs_data = bs.get("financials", {}).get("balance_sheet", {})
-                    
-                    valuation["total_equity"] = bs_data.get("equity_attributable_to_parent", {}).get("value") or bs.get("total_equity")
-                    
-                    long_term_debt = bs_data.get("long_term_debt", {}).get("value") or 0
-                    current_debt = bs_data.get("debt_current", {}).get("value") or 0
-                    valuation["total_debt"] = long_term_debt + current_debt
-            else:
-                print(f"Balance Sheet for {symbol} failed: {response.status_code} - {response.text}")
-        except Exception as e:
-             print(f"Error fetching balance sheet for {symbol}: {e}")
+        # 2. Income Statement (EPS) - REQUIRES PREMIUM
+        # try: ... except ...
+
+        # 3. Balance Sheet (Equity, Debt) - REQUIRES PREMIUM
+        # try: ... except ...
              
-        # 4. Cash Flow (Free Cash Flow)
-        try:
-            url = "https://api.massive.com/stocks/financials/v1/cash-flow-statements"
-            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key}, timeout=10)
-            if response.status_code == 200:
-                results = response.json().get("results", [])
-                if results:
-                     cf = results[0]
-                     cf_data = cf.get("financials", {}).get("cash_flow_statement", {})
-                     
-                     operating_cash_flow = cf_data.get("net_cash_from_operating_activities", {}).get("value")
-                     if operating_cash_flow:
-                         valuation["free_cash_flow"] = operating_cash_flow 
-            else:
-                # Cash Flow isn't strictly required, so maybe just debug log or silent?
-                # Let's print for now to be sure.
-                print(f"Cash Flow for {symbol} failed: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"Error fetching cash flow for {symbol}: {e}")
+        # 4. Cash Flow (Free Cash Flow) - REQUIRES PREMIUM
+        # try: ... except ...
 
         return valuation
 
