@@ -158,10 +158,36 @@ def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.tx
     success_count = 0
     for i, symbol in enumerate(symbols[:limit]):
         try:
+            # 1. Fetch Raw Financials
             val = client.fetch_company_valuation(symbol)
             if not val:
                 continue
 
+            # 2. Get Latest Price from DB for Ratios
+            cur.execute("SELECT close FROM ohlcv_daily WHERE symbol = %s ORDER BY timestamp DESC LIMIT 1", (symbol,))
+            price_row = cur.fetchone()
+            price = price_row[0] if price_row else None
+            
+            # 3. Calculate Ratios
+            market_cap = val.get("market_cap")
+            eps = val.get("basic_earnings_per_share")
+            equity = val.get("total_equity")
+            debt = val.get("total_debt")
+            shares = val.get("shares_outstanding")
+            
+            pe_ratio = None
+            if price and eps:
+                pe_ratio = price / eps if eps != 0 else 0
+                
+            pb_ratio = None
+            if market_cap and equity:
+                pb_ratio = market_cap / equity if equity != 0 else 0
+                
+            debt_to_equity = None
+            if debt is not None and equity:
+                debt_to_equity = debt / equity if equity != 0 else 0
+
+            # 4. Insert (some fields might be NULL now like dividend_yield if we didn't fetch it)
             cur.execute("""
                 INSERT INTO company_valuations (
                     symbol, date, market_cap, pe_ratio, eps, dividend_yield, 
@@ -179,9 +205,13 @@ def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.tx
                     peg_ratio = EXCLUDED.peg_ratio;
             """, (
                 symbol, today, 
-                val.get("market_cap"), val.get("price_to_earnings"), val.get("earnings_per_share"), 
-                val.get("dividend_yield"), val.get("price_to_book"), val.get("price_to_sales"), 
-                val.get("debt_to_equity"), val.get("free_cash_flow"), val.get("peg_ratio")
+                market_cap, pe_ratio, eps, 
+                None, # dividend_yield
+                pb_ratio, 
+                None, # ps_ratio
+                debt_to_equity, 
+                val.get("free_cash_flow"), 
+                None # peg_ratio
             ))
             success_count += 1
             if i % 100 == 0:

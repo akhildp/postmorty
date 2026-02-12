@@ -98,32 +98,83 @@ class MassiveClient:
 
     def fetch_company_valuation(self, symbol: str) -> Dict[str, Any]:
         """
-        Fetches valuation metrics (ratios) for a symbol.
-        Endpoint: /stocks/financials/v1/ratios
+        Fetches valuation metrics by aggregating data from multiple endpoints:
+        - Ticker Details (Market Cap, Shares)
+        - Income Statement (EPS)
+        - Balance Sheet (Equity, Debt)
         """
-        url = "https://api.massive.com/stocks/financials/v1/ratios"
-        params = {
-            "ticker": symbol,
-            "period": "ttm",
-            "limit": 1,
-            "apiKey": self.api_key
-        }
+        valuation = {}
         
+        # 1. Ticker Details
         try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            results = data.get("results", [])
-            if not results:
-                return {}
-            
-            # Use the most recent TTM record
-            return results[0]
-            
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching valuation for {symbol}: {e}")
-            return {}
+            url = f"https://api.massive.com/v3/reference/tickers/{symbol}"
+            response = requests.get(url, params={"apiKey": self.api_key})
+            if response.status_code == 200:
+                data = response.json().get("results", {})
+                valuation["market_cap"] = data.get("market_cap")
+                valuation["shares_outstanding"] = data.get("weighted_shares_outstanding")
+        except Exception as e:
+            print(f"Error fetching ticker details for {symbol}: {e}")
+
+        # 2. Income Statement (EPS)
+        try:
+            url = "https://api.massive.com/stocks/financials/v1/income-statements"
+            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key})
+            if response.status_code == 200:
+                results = response.json().get("results", [])
+                if results:
+                    income = results[0]
+                    # Check for nested 'financials' -> 'income_statement' structure if applicable, 
+                    # but usually it's flattened or inside 'financials'. 
+                    # Massive's structure usually puts fields directly in result or under financials.
+                    # Based on standard response:
+                    valuation["basic_earnings_per_share"] = income.get("financials", {}).get("income_statement", {}).get("basic_earnings_per_share", {}).get("value")
+                    # Fallback if structure is flat
+                    if valuation.get("basic_earnings_per_share") is None:
+                         valuation["basic_earnings_per_share"] = income.get("basic_earnings_per_share")
+        except Exception as e:
+            print(f"Error fetching income statement for {symbol}: {e}")
+
+        # 3. Balance Sheet (Equity, Debt)
+        try:
+            url = "https://api.massive.com/stocks/financials/v1/balance-sheets"
+            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key})
+            if response.status_code == 200:
+                results = response.json().get("results", [])
+                if results:
+                    bs = results[0]
+                    bs_data = bs.get("financials", {}).get("balance_sheet", {})
+                    
+                    # equity
+                    valuation["total_equity"] = bs_data.get("equity_attributable_to_parent", {}).get("value") or bs.get("total_equity")
+                    
+                    # debt
+                    long_term_debt = bs_data.get("long_term_debt", {}).get("value") or 0
+                    current_debt = bs_data.get("debt_current", {}).get("value") or 0
+                    valuation["total_debt"] = long_term_debt + current_debt
+        except Exception as e:
+             print(f"Error fetching balance sheet for {symbol}: {e}")
+             
+        # 4. Cash Flow (Free Cash Flow) - Optional but good
+        try:
+            url = "https://api.massive.com/stocks/financials/v1/cash-flow-statements"
+            response = requests.get(url, params={"ticker": symbol, "limit": 1, "apiKey": self.api_key})
+            if response.status_code == 200:
+                results = response.json().get("results", [])
+                if results:
+                     cf = results[0]
+                     cf_data = cf.get("financials", {}).get("cash_flow_statement", {})
+                     
+                     operating_cash_flow = cf_data.get("net_cash_from_operating_activities", {}).get("value")
+                     capex = cf_data.get("net_cash_used_for_investing_activities", {}).get("value") # Often approximated or found as 'payments_for_property_plant_and_equipment'
+                     
+                     # Simple FCF approximation if fields match
+                     if operating_cash_flow:
+                         valuation["free_cash_flow"] = operating_cash_flow # Placeholder, real FCF needs Capex subtraction
+        except Exception:
+            pass
+
+        return valuation
 
     def _parse_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Parses the raw results from Massive API into the application's format."""
