@@ -17,9 +17,8 @@ python3 -m postmorty.main ingest-sp500 --days 5 --symbols-file sp500_symbols.txt
 
 # Process each ticker in the S&P 500
 # We iterate through the full list now
-while read -r symbol; do
-    echo "Processing $symbol..." >> refresh.log
-    python3 -m postmorty.main process-ticker "$symbol" >> refresh.log 2>&1
-done < data/sp500_symbols.txt
+# Process indicators for all S&P 500 symbols
+echo "Starting batch processing..." >> refresh.log
+python3 -m postmorty.main process-sp500 >> refresh.log 2>&1
 
 echo "Daily refresh complete at $(date)" >> refresh.log

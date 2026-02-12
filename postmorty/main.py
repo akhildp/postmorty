@@ -87,6 +87,30 @@ def ingest_sp500(limit: int = 600, days: int = 100, symbols_file: str = "sp500_s
     print(f"Batch ingestion complete. Successfully processed {success_count} symbols.")
 
 @app.command()
+def process_sp500(limit: int = 600, symbols_file: str = "sp500_symbols.txt"):
+    """Processes indicators for all S&P 500 symbols."""
+    # Resolve path relative to THIS file
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    symbols_path = os.path.join(base_dir, "data", symbols_file)
+    
+    if not os.path.exists(symbols_path):
+        print(f"Error: {symbols_path} not found.")
+        return
+
+    with open(symbols_path, "r") as f:
+        symbols = [line.strip() for line in f if line.strip()]
+
+    print(f"Starting batch processing for {min(len(symbols), limit)} symbols...")
+    
+    for i, symbol in enumerate(symbols[:limit]):
+        try:
+            process_ticker(symbol)
+        except Exception as e:
+            print(f"Failed to process {symbol}: {e}")
+
+    print("Batch processing complete.")
+
+@app.command()
 def process_ticker(symbol: str):
     """Processes raw OHLCV data into the technical analysis table (candles_d1)."""
     process_ticker_data(symbol)
