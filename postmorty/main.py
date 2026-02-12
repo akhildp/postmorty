@@ -1,26 +1,24 @@
 import os
 import typer
 from .core import database
-from .api.alpha_vantage import AlphaVantageClient, parse_ohlcv_data
+from .api.massive import MassiveClient
 from datetime import datetime
 from .core.processor import process_ticker_data
 
 app = typer.Typer()
 
 @app.command()
-def ingest_daily(symbol: str):
-    """Fetches daily stock data from Alpha Vantage and stores it in the database."""
+def ingest_daily(symbol: str, days: int = 100):
+    """Fetches daily stock data from Massive API and stores it in the database."""
     try:
-        client = AlphaVantageClient()
-        print(f"Fetching data for {symbol}...")
-        raw_data = client.fetch_daily_data(symbol)
+        client = MassiveClient()
+        print(f"Fetching {days} days of data for {symbol}...")
+        records = client.fetch_daily_data(symbol, days=days)
         
-        if not raw_data:
+        if not records:
             print(f"No data returned for {symbol}. Check if the symbol is correct or if API limits were reached.")
             return
 
-        records = parse_ohlcv_data(raw_data)
-        
         conn = database.get_connection()
         cur = conn.cursor()
         
@@ -57,7 +55,7 @@ def status():
         print(f"Database: Failed ({e})")
 
 @app.command()
-def ingest_sp500(limit: int = 25, symbols_file: str = "sp500_symbols.txt"):
+def ingest_sp500(limit: int = 600, days: int = 100, symbols_file: str = "sp500_symbols.txt"):
     """Fetches daily stock data for a list of companies with rate limiting."""
     import time
     
@@ -72,17 +70,15 @@ def ingest_sp500(limit: int = 25, symbols_file: str = "sp500_symbols.txt"):
     with open(symbols_path, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Starting batch ingestion for {min(len(symbols), limit)} symbols (Daily limit: {limit})...")
+    print(f"Starting batch ingestion for {min(len(symbols), limit)} symbols (Daily limit: {limit}, History: {days} days)...")
     
     success_count = 0
     for i, symbol in enumerate(symbols[:limit]):
-        if i > 0:
-            print("Waiting 15 seconds to respect rate limits...")
-            time.sleep(15)
+        # Massive API Unlimited: No sleep needed
         
         try:
             # We call the existing ingest_daily logic
-            ingest_daily(symbol)
+            ingest_daily(symbol, days=days)
             success_count += 1
         except Exception as e:
             print(f"Failed to ingest {symbol}: {e}")

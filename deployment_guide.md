@@ -21,17 +21,23 @@ sudo usermod -aG docker $USER
    DB_NAME=postmorty
    DB_HOST=db
    DB_PORT=5432
-   ALPHA_VANTAGE_KEYS=key1,key2
+   MASSIVE_API_KEY=your_key_here
    ```
 
 ## 3. Deployment
 ```bash
-sudo docker compose up -d --build
+docker compose up -d --build
 ```
 
-## 4. Initialize Database
+## 4. Initialize Database & Fetch Data
+Initialize the schema:
 ```bash
-sudo docker compose exec app python3 -m postmorty.scripts.init_db
+docker compose exec app python3 -m postmorty.scripts.init_db
+```
+
+Fetch 10 years of data for S&P 500 (this will take time):
+```bash
+docker compose exec app python3 -m postmorty.main ingest-sp500 --days 3650
 ```
 
 ## 5. Automation (Cron)
