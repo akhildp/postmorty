@@ -113,4 +113,12 @@ To track ~10,000 active US stocks instead of just the S&P 500:
     ```
 
 4.  **Update Cron**:
-    Modify `refresh_data.sh` or the cron job to use the commands above.
+    The `refresh_data.sh` script has been updated to automatically:
+    -   Fetch the latest ticker list.
+    -   Ingest data for all ~10,000 symbols.
+    -   Process indicators for all symbols.
+    
+    Ensure your cron job is running:
+    ```cron
+    0 0 * * * cd /home/deployuser/postmorty && docker compose exec -T app bash refresh_data.sh
+    ```
