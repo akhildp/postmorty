@@ -55,7 +55,7 @@ def status():
         print(f"Database: Failed ({e})")
 
 @app.command()
-def ingest_batch(limit: int = 10000, days: int = 100, symbols_file: str = "all_us_symbols.txt"):
+def ingest_batch(limit: int = 10000, offset: int = 0, days: int = 100, symbols_file: str = "all_us_symbols.txt"):
     """Fetches daily stock data for a list of companies."""
     # Resolve path relative to THIS file
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -68,10 +68,12 @@ def ingest_batch(limit: int = 10000, days: int = 100, symbols_file: str = "all_u
     with open(symbols_path, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Starting batch ingestion for {min(len(symbols), limit)} symbols from {symbols_file}...")
+    # Apply offset and limit
+    batch_symbols = symbols[offset : offset + limit]
+    print(f"Starting batch ingestion for {len(batch_symbols)} symbols (Offset: {offset}, Limit: {limit}) from {symbols_file}...")
     
     success_count = 0
-    for i, symbol in enumerate(symbols[:limit]):
+    for i, symbol in enumerate(batch_symbols):
         try:
             ingest_daily(symbol, days=days)
             success_count += 1
