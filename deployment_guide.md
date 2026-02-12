@@ -112,6 +112,12 @@ To track ~10,000 active US stocks instead of just the S&P 500:
     docker compose exec app python3 -m postmorty.main process-batch --symbols-file all_us_symbols.txt --limit 10000
     ```
 
+4.  **Ingest Valuation Data**:
+    ```bash
+    docker compose exec app python3 -m postmorty.main ingest-valuations --symbols-file all_us_symbols.txt --limit 10000
+    ```
+
+
 4.  **Update Cron**:
     The `refresh_data.sh` script has been updated to automatically:
     -   Fetch the latest ticker list.

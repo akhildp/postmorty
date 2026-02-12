@@ -135,6 +135,68 @@ def update_symbols():
         print(f"Error updating symbols: {e}")
 
 @app.command()
+def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.txt"):
+    """Fetches and stores valuation metrics for a list of companies."""
+    # Resolve path relative to THIS file
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    symbols_path = os.path.join(base_dir, "data", symbols_file)
+    
+    if not os.path.exists(symbols_path):
+        print(f"Error: {symbols_path} not found. Run 'update-symbols' first?")
+        return
+
+    with open(symbols_path, "r") as f:
+        symbols = [line.strip() for line in f if line.strip()]
+
+    print(f"Starting valuation ingestion for {min(len(symbols), limit)} symbols from {symbols_file}...")
+    
+    conn = database.get_connection()
+    cur = conn.cursor()
+    client = MassiveClient()
+    today = datetime.today().strftime('%Y-%m-%d')
+    
+    success_count = 0
+    for i, symbol in enumerate(symbols[:limit]):
+        try:
+            val = client.fetch_company_valuation(symbol)
+            if not val:
+                continue
+
+            cur.execute("""
+                INSERT INTO company_valuations (
+                    symbol, date, market_cap, pe_ratio, eps, dividend_yield, 
+                    pb_ratio, ps_ratio, debt_to_equity, free_cash_flow, peg_ratio
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (symbol, date) DO UPDATE SET
+                    market_cap = EXCLUDED.market_cap,
+                    pe_ratio = EXCLUDED.pe_ratio,
+                    eps = EXCLUDED.eps,
+                    dividend_yield = EXCLUDED.dividend_yield,
+                    pb_ratio = EXCLUDED.pb_ratio,
+                    ps_ratio = EXCLUDED.ps_ratio,
+                    debt_to_equity = EXCLUDED.debt_to_equity,
+                    free_cash_flow = EXCLUDED.free_cash_flow,
+                    peg_ratio = EXCLUDED.peg_ratio;
+            """, (
+                symbol, today, 
+                val.get("market_cap"), val.get("price_to_earnings"), val.get("earnings_per_share"), 
+                val.get("dividend_yield"), val.get("price_to_book"), val.get("price_to_sales"), 
+                val.get("debt_to_equity"), val.get("free_cash_flow"), val.get("peg_ratio")
+            ))
+            success_count += 1
+            if i % 100 == 0:
+                conn.commit()
+                print(f"Processed {i} symbols...")
+                
+        except Exception as e:
+            print(f"Failed to ingest valuation for {symbol}: {e}")
+            
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"Valuation ingestion complete. Successfully processed {success_count} symbols.")
+
+@app.command()
 def process_ticker(symbol: str):
     """Processes raw OHLCV data into the technical analysis table (candles_d1)."""
     process_ticker_data(symbol)

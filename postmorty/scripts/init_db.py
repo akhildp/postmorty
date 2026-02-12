@@ -5,7 +5,7 @@ def init_db():
     # SQL files are now in a subfolder
     sql_dir = os.path.join(os.path.dirname(__file__), "sql")
     
-    scripts = ["init_db.sql", "init_ohlcv_daily.sql"]
+    scripts = ["init_db.sql", "init_ohlcv_daily.sql", "init_valuations.sql"]
     
     conn = None
     try:

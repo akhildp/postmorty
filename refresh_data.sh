@@ -23,4 +23,8 @@ python3 -m postmorty.main ingest-batch --days 5 --symbols-file all_us_symbols.tx
 echo "Processing indicators..." >> refresh.log
 python3 -m postmorty.main process-batch --symbols-file all_us_symbols.txt --limit 10000 >> refresh.log 2>&1
 
+# 4. Ingest Valuation Data
+echo "Ingesting valuations..." >> refresh.log
+python3 -m postmorty.main ingest-valuations --symbols-file all_us_symbols.txt --limit 10000 >> refresh.log 2>&1
+
 echo "Daily refresh complete at $(date)" >> refresh.log

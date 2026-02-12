@@ -96,6 +96,35 @@ class MassiveClient:
                 
         return all_tickers
 
+    def fetch_company_valuation(self, symbol: str) -> Dict[str, Any]:
+        """
+        Fetches valuation metrics (ratios) for a symbol.
+        Endpoint: /stocks/financials/v1/ratios
+        """
+        url = "https://api.massive.com/stocks/financials/v1/ratios"
+        params = {
+            "ticker": symbol,
+            "period": "ttm",
+            "limit": 1,
+            "apiKey": self.api_key
+        }
+        
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            results = data.get("results", [])
+            if not results:
+                return {}
+            
+            # Use the most recent TTM record
+            return results[0]
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching valuation for {symbol}: {e}")
+            return {}
+
     def _parse_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Parses the raw results from Massive API into the application's format."""
         parsed_records = []
