@@ -42,12 +42,12 @@ class MassiveClient:
         }
         
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
         except requests.exceptions.RequestException as e:
             print(f"Error fetching data from Massive API: {e}")
-            if response.status_code == 403:
+            if 'response' in locals() and response.status_code == 403:
                  print("Please check your MASSIVE_API_KEY.")
             raise
 
