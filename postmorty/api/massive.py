@@ -135,6 +135,52 @@ class MassiveClient:
 
         return valuation
 
+    def fetch_technical_indicator(self, symbol: str, indicator: str, **kwargs) -> List[Dict[str, Any]]:
+        """
+        Generic method to fetch technical indicators from Massive API.
+        Current supported indicators: sma, ema, macd, rsi
+        """
+        url = f"https://api.massive.com/v1/indicators/{indicator}/{symbol}"
+        
+        # Default params
+        params = {
+            "timespan": "day",
+            "adjusted": "true",
+            "series_type": "close",
+            "order": "desc",
+            "limit": 500, # Fetch last 500 points
+            "apiKey": self.api_key
+        }
+        params.update(kwargs)
+        
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Key 'results' contains content? Or 'values'?
+            # Polygon returns 'results': { 'values': [...] }
+            # Massive (if clone) might follow same.
+            results = data.get("results", {})
+            values = results.get("values", [])
+            return values
+
+        except Exception as e:
+            print(f"Error fetching {indicator.upper()} for {symbol}: {e}")
+            return []
+
+    def fetch_sma(self, symbol: str, period: int = 50) -> List[Dict[str, Any]]:
+        return self.fetch_technical_indicator(symbol, "sma", window=period)
+
+    def fetch_ema(self, symbol: str, period: int = 20) -> List[Dict[str, Any]]:
+        return self.fetch_technical_indicator(symbol, "ema", window=period)
+
+    def fetch_rsi(self, symbol: str, period: int = 14) -> List[Dict[str, Any]]:
+        return self.fetch_technical_indicator(symbol, "rsi", window=period)
+        
+    def fetch_macd(self, symbol: str, short_period: int = 12, long_period: int = 26, signal_period: int = 9) -> List[Dict[str, Any]]:
+        return self.fetch_technical_indicator(symbol, "macd", short_window=short_period, long_window=long_period, signal_window=signal_period)
+
     def _parse_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Parses the raw results from Massive API into the application's format."""
         parsed_records = []
