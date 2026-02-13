@@ -89,7 +89,7 @@ def ingest_sp500(limit: int = 600, days: int = 100):
     ingest_batch(limit=limit, days=days, symbols_file="sp500_symbols.txt")
 
 @app.command()
-def process_batch(limit: int = 10000, symbols_file: str = "all_us_symbols.txt"):
+def process_batch(limit: int = 10000, offset: int = 0, symbols_file: str = "all_us_symbols.txt"):
     """Processes indicators for a list of symbols."""
     # Resolve path relative to THIS file
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -102,9 +102,11 @@ def process_batch(limit: int = 10000, symbols_file: str = "all_us_symbols.txt"):
     with open(symbols_path, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Starting batch processing for {min(len(symbols), limit)} symbols from {symbols_file}...")
+    # Apply offset and limit
+    batch_symbols = symbols[offset : offset + limit]
+    print(f"Starting batch processing for {len(batch_symbols)} symbols (Offset: {offset}, Limit: {limit}) from {symbols_file}...")
     
-    for i, symbol in enumerate(symbols[:limit]):
+    for i, symbol in enumerate(batch_symbols):
         try:
             process_ticker(symbol)
         except Exception as e:
@@ -137,7 +139,7 @@ def update_symbols():
         print(f"Error updating symbols: {e}")
 
 @app.command()
-def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.txt"):
+def ingest_valuations(limit: int = 10000, offset: int = 0, symbols_file: str = "all_us_symbols.txt"):
     """Fetches and stores valuation metrics for a list of companies."""
     # Resolve path relative to THIS file
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -150,7 +152,9 @@ def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.tx
     with open(symbols_path, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Starting valuation ingestion for {min(len(symbols), limit)} symbols from {symbols_file}...")
+    # Apply offset and limit
+    batch_symbols = symbols[offset : offset + limit]
+    print(f"Starting valuation ingestion for {len(batch_symbols)} symbols (Offset: {offset}, Limit: {limit}) from {symbols_file}...")
     
     conn = database.get_connection()
     cur = conn.cursor()
@@ -158,7 +162,7 @@ def ingest_valuations(limit: int = 10000, symbols_file: str = "all_us_symbols.tx
     today = datetime.today().strftime('%Y-%m-%d')
     
     success_count = 0
-    for i, symbol in enumerate(symbols[:limit]):
+    for i, symbol in enumerate(batch_symbols):
         try:
             # 1. Fetch Raw Financials
             val = client.fetch_company_valuation(symbol)
