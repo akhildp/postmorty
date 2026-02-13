@@ -1,0 +1,8 @@
+-- Remove ema_20
+ALTER TABLE massive_indicators DROP COLUMN IF EXISTS ema_20;
+
+-- Add new EMAs
+ALTER TABLE massive_indicators ADD COLUMN IF NOT EXISTS ema_10 NUMERIC;
+ALTER TABLE massive_indicators ADD COLUMN IF NOT EXISTS ema_36 NUMERIC;
+ALTER TABLE massive_indicators ADD COLUMN IF NOT EXISTS ema_100 NUMERIC;
+ALTER TABLE massive_indicators ADD COLUMN IF NOT EXISTS ema_200 NUMERIC;

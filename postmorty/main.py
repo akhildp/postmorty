@@ -256,13 +256,18 @@ def ingest_massive_indicators(limit: int = 10000, offset: int = 0, symbols_file:
     # Pre-prepare SQL
     sql = """
         INSERT INTO massive_indicators (
-            symbol, date, sma_50, sma_200, ema_20, rsi_14, 
+            symbol, date, sma_50, sma_200, 
+            ema_10, ema_36, ema_100, ema_200,
+            rsi_14, 
             macd_value, macd_signal, macd_histogram
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (symbol, date) DO UPDATE SET
             sma_50 = EXCLUDED.sma_50,
             sma_200 = EXCLUDED.sma_200,
-            ema_20 = EXCLUDED.ema_20,
+            ema_10 = EXCLUDED.ema_10,
+            ema_36 = EXCLUDED.ema_36,
+            ema_100 = EXCLUDED.ema_100,
+            ema_200 = EXCLUDED.ema_200,
             rsi_14 = EXCLUDED.rsi_14,
             macd_value = EXCLUDED.macd_value,
             macd_signal = EXCLUDED.macd_signal,
@@ -273,7 +278,10 @@ def ingest_massive_indicators(limit: int = 10000, offset: int = 0, symbols_file:
     for i, symbol in enumerate(batch_symbols):
         try:
             # Fetch all indicators
-            # SMA 50, SMA 200, EMA 20, RSI 14, MACD (12,26,9)
+            # SMA 50, 200
+            # EMA 10, 36, 100, 200
+            # RSI 14
+            # MACD (12,26,9)
             
             # Dictionary to aggregate by date: date -> {indicator: value}
             agg_data = {}
@@ -298,7 +306,12 @@ def ingest_massive_indicators(limit: int = 10000, offset: int = 0, symbols_file:
             # Fetch & Process
             process_indicator('sma_50', client.fetch_sma(symbol, 50))
             process_indicator('sma_200', client.fetch_sma(symbol, 200))
-            process_indicator('ema_20', client.fetch_ema(symbol, 20))
+            
+            process_indicator('ema_10', client.fetch_ema(symbol, 10))
+            process_indicator('ema_36', client.fetch_ema(symbol, 36))
+            process_indicator('ema_100', client.fetch_ema(symbol, 100))
+            process_indicator('ema_200', client.fetch_ema(symbol, 200))
+            
             process_indicator('rsi_14', client.fetch_rsi(symbol, 14))
             process_indicator('macd', client.fetch_macd(symbol), key='macd')
             
@@ -310,7 +323,8 @@ def ingest_massive_indicators(limit: int = 10000, offset: int = 0, symbols_file:
                 cur.execute(sql, (
                     symbol, date_key,
                     row.get('sma_50'), row.get('sma_200'),
-                    row.get('ema_20'), row.get('rsi_14'),
+                    row.get('ema_10'), row.get('ema_36'), row.get('ema_100'), row.get('ema_200'),
+                    row.get('rsi_14'),
                     row.get('macd_value'), row.get('macd_signal'), row.get('macd_histogram')
                 ))
             
